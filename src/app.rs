@@ -1,3 +1,5 @@
+use crate::config::Config;
+
 struct App {
-    config: config::Config,
+    config: Config,
 }
