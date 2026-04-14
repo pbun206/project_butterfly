@@ -1,15 +1,17 @@
 mod app;
+mod audio_cmp;
 mod audio_synth;
 mod config;
 mod egui_tools;
+mod state;
 
-use crate::config::*;
+use crate::{app::App, config::*, state::State};
 use anyhow::{Context, Result};
 use dirs::config_dir;
 use std::path::PathBuf;
+use winit::event_loop::EventLoop;
 
 use clap::Parser;
-use winit::event_loop::{ControlFlow, EventLoop};
 
 /// Store arguments
 #[derive(Parser, Debug)]
@@ -33,5 +35,10 @@ fn main() -> Result<()> {
     if cli.debug > 0 {
         dbg!(&config);
     }
+    env_logger::init();
+    // TODO make sure removing run_user_event wasn't a bad idea
+    let event_loop = EventLoop::new()?;
+    let app = App::new(config);
+    event_loop.run_app(app)?;
     Ok(())
 }
