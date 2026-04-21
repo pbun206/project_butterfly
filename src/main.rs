@@ -8,6 +8,7 @@ mod state;
 use crate::{app::App, config::*, state::State};
 use anyhow::{Context, Result};
 use dirs::config_dir;
+use rtrb::RingBuffer;
 use std::path::PathBuf;
 use winit::event_loop::EventLoop;
 
@@ -25,6 +26,8 @@ struct Cli {
 }
 
 fn main() -> Result<()> {
+    let (mut midi_producer, mut midi_consumer) =
+        RingBuffer::<livi::event::LV2AtomSequence>::new(1024);
     let cli = Cli::parse();
     let config_path = cli.config_path.unwrap_or(
         config_dir()
@@ -32,6 +35,8 @@ fn main() -> Result<()> {
             .join("project_butterfly/project_butterfly.toml"),
     );
     let config: Config = Config::from_path(&config_path)?;
+    let mut audio_cmp = audio_cmp::AudioComponent::try_new(&config, midi_consumer)?;
+    audio_cmp.run()?;
     if cli.debug > 0 {
         dbg!(&config);
     }
