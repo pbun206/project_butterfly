@@ -1,11 +1,12 @@
 use crate::config::Config;
 use crate::state::State;
-use egui::Color32;
+use egui::{Color32, Frame, LayerId};
 use egui_wgpu::wgpu::SurfaceTexture;
 use egui_wgpu::{ScreenDescriptor, wgpu};
 use std::sync::Arc;
 use wgpu::CurrentSurfaceTexture;
 use winit::application::ApplicationHandler;
+use winit::cursor::CursorIcon;
 use winit::event::{KeyEvent, WindowEvent};
 use winit::event_loop::ActiveEventLoop;
 use winit::keyboard::{KeyCode, PhysicalKey};
@@ -107,34 +108,28 @@ impl App {
         {
             state.egui_renderer.begin_frame(window);
 
-            egui::Window::new("Project Butterfly")
-                .resizable(true)
-                .vscroll(true)
-                .default_open(false)
-                .show(state.egui_renderer.context(), |ui| {
-                    let available_rect = ui.available_rect_before_wrap();
-                    let width = available_rect.width();
-                    let x_offset = available_rect.left();
-                    let height = available_rect.height();
-                    let y_offset = available_rect.top();
-                    let painter = ui.painter();
-                    let color = Color32::WHITE;
-                    let radius = 1.5;
+            let ui = state.egui_renderer.context();
+            let available_rect = ui.content_rect();
+            let width = available_rect.width();
+            let x_offset = available_rect.left();
+            let height = available_rect.height();
+            let y_offset = available_rect.top();
+            let painter = ui.layer_painter(LayerId::background());
+            let color = Color32::WHITE;
+            let radius = 2.5;
 
-                    // x axis
-                    for i in 0..21 {
-                        for j in 0..14 {
-                            painter.circle_filled(
-                                egui::pos2(
-                                    x_offset + width * (i as f32 / 20.0),
-                                    y_offset + height * (j as f32 / 13.0),
-                                ),
-                                radius,
-                                color,
-                            );
-                        }
-                    }
-                });
+            for i in 0..21 {
+                for j in 0..14 {
+                    painter.circle_filled(
+                        egui::pos2(
+                            x_offset + width * (i as f32 / 20.0),
+                            y_offset + height * (j as f32 / 13.0),
+                        ),
+                        radius,
+                        color,
+                    );
+                }
+            }
 
             state.egui_renderer.end_frame_and_draw(
                 &state.device,
@@ -158,8 +153,9 @@ impl ApplicationHandler for App {
     // TODO should be able to make the same
     fn can_create_surfaces(&mut self, event_loop: &dyn ActiveEventLoop) {
         #[allow(unused_mut)]
-        let mut window_attributes =
-            WindowAttributes::default().with_fullscreen(Some(Fullscreen::Borderless(None)));
+        let mut window_attributes = WindowAttributes::default()
+            .with_fullscreen(Some(Fullscreen::Borderless(None)))
+            .with_cursor(CursorIcon::Crosshair);
 
         let window = Arc::from((event_loop.create_window(window_attributes)).unwrap());
 

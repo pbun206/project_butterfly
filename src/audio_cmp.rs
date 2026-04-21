@@ -14,21 +14,22 @@ pub struct AudioComponent {
 impl AudioComponent {
     /// Creates a new `AudioComponent` with the given plugin chain.
     pub fn try_new(lv2_world: World, plugins: Vec<Plugin>) -> Result<Self> {
-        const SAMPLE_RATE: f64 = 44100.0;
-        let lv2_features = lv2_world.build_features(livi::FeaturesBuilder::default());
-        let plugin_instances: Vec<Instance> = plugins
-            .into_iter()
-            .map(|plugin| unsafe {
-                plugin
-                    .instantiate(features.clone(), SAMPLE_RATE)
-                    .expect("Could not instantiate plugin.")
-            })
-            .collect();
-        Ok(Self {
-            plugin_instances,
-            lv2_features,
-            lv2_world,
-        })
+        // const SAMPLE_RATE: f64 = 44100.0;
+        // let lv2_features = lv2_world.build_features(livi::FeaturesBuilder::default());
+        // let plugin_instances: Vec<Instance> = plugins
+        //     .into_iter()
+        //     .map(|plugin| unsafe {
+        //         plugin
+        //             .instantiate(features.clone(), SAMPLE_RATE)
+        //             .expect("Could not instantiate plugin.")
+        //     })
+        //     .collect();
+        // Ok(Self {
+        //     plugin_instances,
+        //     lv2_features,
+        //     lv2_world,
+        // })
+        todo!();
     }
 
     /// TODO
@@ -53,6 +54,7 @@ impl AudioComponent {
         let ports = livi::EmptyPortConnections::new()
             .with_atom_sequence_inputs(std::iter::once(&input))
             .with_audio_outputs(outputs.iter_mut().map(|output| output.as_mut_slice()));
-        unsafe { instance.run(features.max_block_length(), ports).unwrap() };
+        todo!();
+        // unsafe { instance.run(features.max_block_length(), ports).unwrap() };
     }
 }
