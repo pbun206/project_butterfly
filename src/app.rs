@@ -1,6 +1,6 @@
 use crate::config::Config;
 use crate::state::State;
-use egui::{Color32, Frame, LayerId};
+use egui::{Color32, LayerId};
 use egui_wgpu::wgpu::SurfaceTexture;
 use egui_wgpu::{ScreenDescriptor, wgpu};
 use std::sync::Arc;

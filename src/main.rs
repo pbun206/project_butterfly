@@ -35,6 +35,7 @@ fn main() -> Result<()> {
     if cli.debug > 0 {
         dbg!(&config);
     }
+
     env_logger::init();
     // TODO make sure removing run_user_event wasn't a bad idea
     let event_loop = EventLoop::new()?;
