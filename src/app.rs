@@ -173,7 +173,7 @@ impl ApplicationHandler for App {
             Some(canvas) => canvas,
             None => return,
         };
-        println!("{:#?}", event);
+        // println!("{:#?}", event);
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::SurfaceResized(size) => self.handle_resize(size.width, size.height),

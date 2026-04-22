@@ -15,6 +15,4 @@ dirs = "6.0.0"
 env_logger = "0.11.10"
 log = "0.4.29"
 pollster = "0.4.0"
-livi = "0.7.5"
-rtrb = "0.3.3"
-cpal = "0.17.3"
+broken_nest = { git = "https://github.com/pbun206/broken_nest" }

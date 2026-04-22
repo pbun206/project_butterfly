@@ -4,7 +4,7 @@ use egui_wgpu::wgpu::{self, ExperimentalFeatures};
 use std::sync::Arc;
 use winit::{event_loop::EventLoop, window::Window};
 
-use crate::{app::App, config::Config, egui_tools::EguiRenderer};
+use crate::egui_tools::EguiRenderer;
 
 pub struct State {
     pub device: wgpu::Device,

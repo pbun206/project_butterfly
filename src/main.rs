@@ -1,20 +1,18 @@
 mod app;
-mod audio_cmp;
 mod audio_synth;
 mod config;
 mod egui_tools;
 mod state;
 
-use crate::{app::App, config::*, state::State};
+use crate::{app::App, config::*};
 use anyhow::{Context, Result};
+use broken_nest::Chain;
 use dirs::config_dir;
-use rtrb::RingBuffer;
 use std::path::PathBuf;
 use winit::event_loop::EventLoop;
 
 use clap::Parser;
 
-/// Store arguments
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
@@ -26,8 +24,7 @@ struct Cli {
 }
 
 fn main() -> Result<()> {
-    let (mut midi_producer, mut midi_consumer) =
-        RingBuffer::<livi::event::LV2AtomSequence>::new(1024);
+    // Parse config shit
     let cli = Cli::parse();
     let config_path = cli.config_path.unwrap_or(
         config_dir()
@@ -35,16 +32,21 @@ fn main() -> Result<()> {
             .join("project_butterfly/project_butterfly.toml"),
     );
     let config: Config = Config::from_path(&config_path)?;
-    let mut audio_cmp = audio_cmp::AudioComponent::try_new(&config, midi_consumer)?;
-    audio_cmp.run()?;
     if cli.debug > 0 {
         dbg!(&config);
     }
 
+    let chain = Chain::start(&config.chain)
+        .map_err(|e| anyhow::anyhow!("Failed to start audio chain: {e}"))?;
+    println!("Audio chain started successfully.");
+
     env_logger::init();
-    // TODO make sure removing run_user_event wasn't a bad idea
     let event_loop = EventLoop::new()?;
     let app = App::new(config);
     event_loop.run_app(app)?;
+
+    println!("Program exiting");
+    drop(chain);
+    println!("Program exited successfully.");
     Ok(())
 }
