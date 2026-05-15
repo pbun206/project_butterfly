@@ -1,7 +1,4 @@
-use anyhow::Result;
-use egui::ViewportId;
 use egui_wgpu::wgpu::{self, ExperimentalFeatures};
-use std::sync::Arc;
 use winit::{event_loop::EventLoop, window::Window};
 
 use crate::egui_tools::EguiRenderer;

@@ -1,33 +1,50 @@
-use crate::config::Config;
+use crate::events::PbEvent;
 use crate::state::State;
 use egui::{Color32, LayerId};
 use egui_wgpu::wgpu::SurfaceTexture;
 use egui_wgpu::{ScreenDescriptor, wgpu};
 use std::sync::Arc;
+use std::sync::mpsc::Sender;
 use wgpu::CurrentSurfaceTexture;
 use winit::application::ApplicationHandler;
-use winit::cursor::CursorIcon;
-use winit::event::{KeyEvent, WindowEvent};
+use winit::cursor::CustomCursorSource;
+use winit::event::{KeyEvent, PointerSource, WindowEvent};
 use winit::event_loop::ActiveEventLoop;
 use winit::keyboard::{KeyCode, PhysicalKey};
 use winit::monitor::Fullscreen;
 use winit::window::{Window, WindowAttributes};
 
-/// This structure operates input handling, windowing, and uses State to handle rendering.
 pub struct App {
+    audio_thread_sender: Sender<PbEvent>,
     state: Option<State>,
-    config: Config,
     window: Option<Arc<dyn Window>>,
+    last_pressure: f32,
+    attack_origin: Option<(f64, u8)>,
 }
 
 impl App {
-    /// Creates a new instance of the app with the given configuration.
-    pub fn new(config: Config) -> Self {
+    pub fn new(audio_thread_sender: Sender<PbEvent>) -> Self {
         Self {
             state: None,
-            config,
             window: None,
+            audio_thread_sender,
+            last_pressure: 1.0,
+            attack_origin: None,
         }
+    }
+
+    fn position_to_grid(&self, x: f64, y: f64) -> (u8, u8) {
+        let state = self.state.as_ref().unwrap();
+        let scale = self.window.as_ref().unwrap().scale_factor();
+        let w = state.surface_config.width as f64 / scale;
+        let h = state.surface_config.height as f64 / scale;
+        let col = (x / w * 20.0).round().clamp(0.0, 20.0) as u8;
+        let row = (y / h * 13.0).round().clamp(0.0, 13.0) as u8;
+        (col, row)
+    }
+
+    fn shutdown(&mut self) {
+        let _ = self.audio_thread_sender.send(PbEvent::Shutdown);
     }
 
     /// Initializes the window and sets up the state.
@@ -154,10 +171,29 @@ impl ApplicationHandler for App {
     fn can_create_surfaces(&mut self, event_loop: &dyn ActiveEventLoop) {
         #[allow(unused_mut)]
         let mut window_attributes = WindowAttributes::default()
-            .with_fullscreen(Some(Fullscreen::Borderless(None)))
-            .with_cursor(CursorIcon::Crosshair);
+            .with_fullscreen(Some(Fullscreen::Borderless(None)));
 
-        let window = Arc::from((event_loop.create_window(window_attributes)).unwrap());
+        let window: Arc<dyn Window> = Arc::from(event_loop.create_window(window_attributes).unwrap());
+
+        let size: u16 = 21;
+        let mut rgba = vec![0u8; (size as usize * size as usize) * 4];
+        for y in 0..size {
+            for x in 0..size {
+                let on_diag1 = (x as i16 - y as i16).unsigned_abs() <= 1;
+                let on_diag2 = (x as i16 - (size as i16 - 1 - y as i16)).unsigned_abs() <= 1;
+                if on_diag1 || on_diag2 {
+                    let i = (y as usize * size as usize + x as usize) * 4;
+                    rgba[i] = 163;
+                    rgba[i + 1] = 17;
+                    rgba[i + 2] = 246;
+                    rgba[i + 3] = 255;
+                }
+            }
+        }
+        let hotspot = size / 2;
+        let source = CustomCursorSource::from_rgba(rgba, size, size, hotspot, hotspot).unwrap();
+        let custom_cursor = event_loop.create_custom_cursor(source).unwrap();
+        window.set_cursor(custom_cursor.into());
 
         pollster::block_on(self.set_window(window));
     }
@@ -173,9 +209,11 @@ impl ApplicationHandler for App {
             Some(canvas) => canvas,
             None => return,
         };
-        // println!("{:#?}", event);
+        println!("{:#?}", event);
         match event {
-            WindowEvent::CloseRequested => event_loop.exit(),
+            WindowEvent::CloseRequested => {
+                self.shutdown();
+            }
             WindowEvent::SurfaceResized(size) => self.handle_resize(size.width, size.height),
             WindowEvent::RedrawRequested => {
                 self.handle_redraw();
@@ -189,9 +227,62 @@ impl ApplicationHandler for App {
                     },
                 ..
             } => match (code, key_state.is_pressed()) {
-                (KeyCode::Escape, true) => event_loop.exit(),
+                (KeyCode::Escape, true) => {
+                    self.shutdown();
+                }
+                (KeyCode::Slash, true) => {
+                    let _ = self.audio_thread_sender.send(PbEvent::ToggleDrumUi);
+                }
+                (KeyCode::Quote, true) => {
+                    let _ = self.audio_thread_sender.send(PbEvent::ToggleGuitarUi);
+                }
+                (KeyCode::KeyM, true) => {
+                    let _ = self.audio_thread_sender.send(PbEvent::ToggleMute);
+                }
                 _ => {}
             },
+            WindowEvent::PointerMoved { position, source, .. } => {
+                let is_tablet = matches!(source, PointerSource::TabletTool { .. });
+                if let PointerSource::TabletTool { data, .. } = source {
+                    self.last_pressure = data.force
+                        .map(|f| f.normalized(None) as f32)
+                        .unwrap_or(1.0);
+                } else {
+                    self.last_pressure = 1.0;
+                }
+                if let Some((origin_x, _)) = self.attack_origin {
+                    let scale = self.window.as_ref().unwrap().scale_factor();
+                    let w = self.state.as_ref().unwrap().surface_config.width as f64 / scale;
+                    let col_width = w / 20.0;
+                    let semitones = ((position.x - origin_x) / col_width) as f32;
+                    if is_tablet {
+                        let _ = self.audio_thread_sender.send(PbEvent::AttackHeldWithPressure(semitones));
+                    } else {
+                        let _ = self.audio_thread_sender.send(PbEvent::AttackHeld(semitones));
+                    }
+                }
+            }
+            WindowEvent::PointerButton {
+                state: button_state,
+                position,
+                ..
+            } => {
+                let (col, row) = self.position_to_grid(position.x, position.y);
+                if button_state.is_pressed() {
+                    self.attack_origin = Some((position.x, row));
+                    if self.last_pressure < 1.0 {
+                        let _ = self.audio_thread_sender.send(PbEvent::AttackWithPressure {
+                            col, row, pressure: self.last_pressure,
+                        });
+                    } else {
+                        let _ = self.audio_thread_sender.send(PbEvent::Attack { col, row });
+                    }
+                } else {
+                    self.attack_origin = None;
+                    let _ = self.audio_thread_sender.send(PbEvent::AttackHeld(0.0));
+                    let _ = self.audio_thread_sender.send(PbEvent::AttackOff);
+                }
+            }
             _ => {}
         }
     }

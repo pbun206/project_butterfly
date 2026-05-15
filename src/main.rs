@@ -2,11 +2,11 @@ mod app;
 mod audio_synth;
 mod config;
 mod egui_tools;
+mod events;
 mod state;
 
-use crate::{app::App, config::*};
+use crate::{app::App, audio_synth::AudioThreadConfig, config::*, events::PbEvent};
 use anyhow::{Context, Result};
-use broken_nest::Chain;
 use dirs::config_dir;
 use std::path::PathBuf;
 use winit::event_loop::EventLoop;
@@ -24,7 +24,6 @@ struct Cli {
 }
 
 fn main() -> Result<()> {
-    // Parse config shit
     let cli = Cli::parse();
     let config_path = cli.config_path.unwrap_or(
         config_dir()
@@ -36,17 +35,33 @@ fn main() -> Result<()> {
         dbg!(&config);
     }
 
-    let chain = Chain::start(&config.chain)
-        .map_err(|e| anyhow::anyhow!("Failed to start audio chain: {e}"))?;
-    println!("Audio chain started successfully.");
-
     env_logger::init();
+
+    let (audio_thread_sender, audio_thread_receiver) = std::sync::mpsc::channel::<PbEvent>();
+    let (startup_tx, startup_rx) = std::sync::mpsc::sync_channel::<Result<()>>(1);
+
+    let config_for_audio = config.clone();
+    std::thread::spawn(move || {
+        match AudioThreadConfig::new(&config_for_audio, audio_thread_receiver) {
+            Ok(mut audio) => {
+                let _ = startup_tx.send(Ok(()));
+                audio.run_loop();
+            }
+            Err(e) => {
+                let _ = startup_tx.send(Err(e));
+            }
+        }
+    });
+
+    startup_rx
+        .recv()
+        .context("Audio thread died before reporting")?
+        .context("Audio thread failed to start")?;
+
     let event_loop = EventLoop::new()?;
-    let app = App::new(config);
+    let app = App::new(audio_thread_sender);
     event_loop.run_app(app)?;
 
     println!("Program exiting");
-    drop(chain);
-    println!("Program exited successfully.");
     Ok(())
 }
