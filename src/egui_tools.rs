@@ -23,6 +23,20 @@ impl EguiRenderer {
     ) -> EguiRenderer {
         let egui_ctx = Context::default();
 
+        let mut fonts = egui::FontDefinitions::default();
+        let inter_data = std::fs::read("/usr/share/fonts/rsms-inter-fonts/Inter-Regular.ttf")
+            .expect("Failed to load Inter font");
+        fonts.font_data.insert(
+            "Inter".to_owned(),
+            egui::FontData::from_owned(inter_data).into(),
+        );
+        fonts
+            .families
+            .get_mut(&egui::FontFamily::Proportional)
+            .unwrap()
+            .insert(0, "Inter".to_owned());
+        egui_ctx.set_fonts(fonts);
+
         let egui_renderer = Renderer::new(device, output_color_format, RendererOptions::default());
 
         EguiRenderer {

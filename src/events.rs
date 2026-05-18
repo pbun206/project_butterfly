@@ -1,15 +1,39 @@
 pub enum PbEvent {
     TempoChange(f32),
     DrumModeChange(DrumMode),
+    GuitarModeChange(GuitarMode),
+    ResetBar,
     Attack { col: u8, row: u8 },
     AttackWithPressure { col: u8, row: u8, pressure: f32 },
+    CursorUpdate { col: u8, row: u8 },
     AttackHeld(f32),
     AttackHeldWithPressure(f32),
     AttackOff,
     ToggleDrumUi,
     ToggleGuitarUi,
     ToggleMute,
+    ToggleDrumMute,
+    ToggleGuitarMute,
+    ToggleCymbalUi,
+    ToggleDrumBusUi,
+    SpaceState(bool),
+    PalmMute(bool),
+    PhaseAdvance,
+    PhaseRetreat,
     Shutdown,
+}
+
+#[derive(Debug, Clone, PartialEq, Copy)]
+pub struct GuitarMode {
+    pub subdivision: Subdivision,
+}
+
+impl Default for GuitarMode {
+    fn default() -> Self {
+        Self {
+            subdivision: Subdivision::None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Copy)]
@@ -75,6 +99,7 @@ pub enum Subdivision {
     Eighth,
     Triplet,
     Sixteenth,
+    ThirtySecond,
 }
 
 impl Default for Subdivision {
@@ -84,15 +109,27 @@ impl Default for Subdivision {
 }
 
 impl Subdivision {
-    /// Returns whether this subdivision is on the current subdivision of the bar where subdivision 0 is the downbeat and goes up to 48 subdivisions for the entire bar.
     pub fn is_on_curr_subdivision(self, curr_subdivsion_of_bar: u32) -> bool {
         match self {
             Subdivision::None => false,
-            Subdivision::Half => curr_subdivsion_of_bar % 24 == 0,
-            Subdivision::Quarter => curr_subdivsion_of_bar % 12 == 0,
-            Subdivision::Eighth => curr_subdivsion_of_bar % 6 == 0,
-            Subdivision::Triplet => curr_subdivsion_of_bar % 4 == 0,
-            Subdivision::Sixteenth => curr_subdivsion_of_bar % 3 == 0,
+            Subdivision::Half => curr_subdivsion_of_bar % 96 == 0,
+            Subdivision::Quarter => curr_subdivsion_of_bar % 48 == 0,
+            Subdivision::Eighth => curr_subdivsion_of_bar % 24 == 0,
+            Subdivision::Triplet => curr_subdivsion_of_bar % 16 == 0,
+            Subdivision::Sixteenth => curr_subdivsion_of_bar % 12 == 0,
+            Subdivision::ThirtySecond => curr_subdivsion_of_bar % 6 == 0,
+        }
+    }
+
+    pub fn is_at_half_subdivision(self, curr_subdivsion_of_bar: u32) -> bool {
+        match self {
+            Subdivision::None => false,
+            Subdivision::Half => curr_subdivsion_of_bar % 96 == 48,
+            Subdivision::Quarter => curr_subdivsion_of_bar % 48 == 24,
+            Subdivision::Eighth => curr_subdivsion_of_bar % 24 == 12,
+            Subdivision::Triplet => curr_subdivsion_of_bar % 16 == 8,
+            Subdivision::Sixteenth => curr_subdivsion_of_bar % 12 == 6,
+            Subdivision::ThirtySecond => curr_subdivsion_of_bar % 6 == 3,
         }
     }
 }

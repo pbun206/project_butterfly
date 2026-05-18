@@ -1,8 +1,11 @@
 mod app;
+mod audio_player;
 mod audio_synth;
 mod config;
 mod egui_tools;
 mod events;
+mod meter;
+mod scales;
 mod state;
 
 use crate::{app::App, audio_synth::AudioThreadConfig, config::*, events::PbEvent};
@@ -37,12 +40,21 @@ fn main() -> Result<()> {
 
     env_logger::init();
 
+    let phases = config.resolve_phases();
+
     let (audio_thread_sender, audio_thread_receiver) = std::sync::mpsc::channel::<PbEvent>();
     let (startup_tx, startup_rx) = std::sync::mpsc::sync_channel::<Result<()>>(1);
+    let repeat_cell = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0xFFFF_FFFF));
+    let repeat_cell_app = repeat_cell.clone();
+    let beat_cell = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0xFFFF_FFFF));
+    let beat_cell_app = beat_cell.clone();
+    let phase_cell = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0xFFFF_FFFF));
+    let phase_cell_app = phase_cell.clone();
+    let phases_audio = phases.clone();
 
     let config_for_audio = config.clone();
     std::thread::spawn(move || {
-        match AudioThreadConfig::new(&config_for_audio, audio_thread_receiver) {
+        match AudioThreadConfig::new(&config_for_audio, audio_thread_receiver, repeat_cell, beat_cell, phase_cell, phases_audio) {
             Ok(mut audio) => {
                 let _ = startup_tx.send(Ok(()));
                 audio.run_loop();
@@ -59,7 +71,7 @@ fn main() -> Result<()> {
         .context("Audio thread failed to start")?;
 
     let event_loop = EventLoop::new()?;
-    let app = App::new(audio_thread_sender);
+    let app = App::new(audio_thread_sender, repeat_cell_app, beat_cell_app, phase_cell_app, phases);
     event_loop.run_app(app)?;
 
     println!("Program exiting");
