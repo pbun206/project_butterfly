@@ -7,9 +7,10 @@ tablets already have solid continuous tracking and pressure sensitivity, so this
 - pen pressure shapes dynamics, timbre, and modulation
 - audio runs through jack and lv2 plugins, separate from the egui canvas
 
+
+demo:
 <video src="assets/demo.mp4" controls="controls" width="100%"></video>
 
-demo: [raw video](assets/demo.mp4) · [youtube](https://www.youtube.com/watch?v=ZB5CRUAWFpI)
 
 ## running
 
