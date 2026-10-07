@@ -8,11 +8,17 @@ tablets already have solid continuous tracking and pressure sensitivity, so this
 - audio runs through jack and lv2 plugins, separate from the egui canvas
 
 
-demo:
-<video src="assets/demo.mp4" controls="controls" width="100%"></video>
+[demo](https://github.com/user-attachments/assets/cb14a0a1-f377-41ee-8b24-35cbdcb11a1a
+)
+
+[youtube version](https://www.youtube.com/watch?v=ZB5CRUAWFpI)
+
+
+
 
 
 ## running
+Selection deleted
 
 requires a running jack / pipewire-jack setup and a connected drawing tablet:
 
